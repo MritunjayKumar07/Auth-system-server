@@ -25,7 +25,6 @@ const userSchema = new Schema(
     },
     verificationCodeExpiresAt: {
       type: Date,
-      expires: 600, // 600 seconds = 10 minutes
     },
     password: {
       type: String,
@@ -46,7 +45,7 @@ userSchema.pre("save", async function (next) {
 
 userSchema.pre("save", function (next) {
   if (this.isModified("verificationCode")) {
-    this.verificationCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    this.verificationCodeExpiresAt = new Date();
   }
   next();
 });

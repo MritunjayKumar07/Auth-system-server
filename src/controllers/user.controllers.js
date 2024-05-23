@@ -12,27 +12,27 @@ const registerUser = async (req, res) => {
   const { email, name } = req.body;
 
   if (!email) {
-    return res.status(400).json({ error: "Email is required." });
+    return res.status(400).json({ code: 400, error: "Email is required." });
   }
   if (!email.includes("@") || !email.includes(".")) {
-    return res.status(400).json({ error: "Enter valid email." });
+    return res.status(400).json({ code: 400, error: "Enter valid email." });
   }
 
   if (!name || !(name.length >= 3)) {
-    return res.status(400).json({ error: "Enter valid name." });
+    return res.status(400).json({ code: 400, error: "Enter valid name." });
   }
 
   const existUser = await User.findOne({ email: email });
 
   if (existUser)
-    return res.status(403).json({ message: "User alwarady exist!" });
+    return res.status(403).json({ code: 403, message: "User alwarady exist!" });
 
   const code = generateVerificationCode();
   const emailSend = await sendVarificationCodeOnMail({ code, email });
   if (!emailSend)
     return res
       .status(500)
-      .json({ message: "Server error while sending email!" });
+      .json({ code: 500, message: "Server error while sending email!" });
 
   const user = await User.create({
     email: email,
@@ -45,9 +45,9 @@ const registerUser = async (req, res) => {
   if (!createdUser)
     return res
       .status(500)
-      .json({ message: "Server error while creating the user!." });
+      .json({ code: 500, message: "Server error while creating the user!." });
 
-  return res.status(200).json({ message: "Cheak your mail box!" });
+  return res.status(200).json({ code: 200, message: "Cheak your mail box!" });
 };
 
 const createPasswordUser = async (req, res) => {
@@ -55,37 +55,39 @@ const createPasswordUser = async (req, res) => {
   // console.log("Register", req.body);
 
   if (!email || !code) {
-    return res.status(400).json({ error: "Invalid User!" });
+    return res.status(400).json({ code: 400, error: "Invalid User!" });
   }
   if (!password) {
-    return res.status(400).json({ error: "Password is required!" });
+    return res.status(400).json({ code: 400, error: "Password is required!" });
   }
 
   try {
     const user = await User.findOne({ email: email });
-    if (!user) return res.status(400).json({ error: "User not available!" });
-    const date = new Date(user.verificationCodeExpiresAt);
+    if (!user)
+      return res.status(400).json({ code: 400, error: "User not available!" });
+    const dbDate = user.verificationCodeExpiresAt;
     const now = new Date();
-    const diffMilliseconds = now - date;
-    const diffMinutes = diffMilliseconds / 1000 / 60; // Convert milliseconds to minutes
+    const diffMilliseconds = now - dbDate;
+    const diffMinutes = diffMilliseconds / 1000 / 60;
     if (diffMinutes > 8) {
-      return res.status(400).json({ error: "Time expired!" });
+      return res.status(400).json({ code: 400, error: "Time expired!" });
     }
     if (user.verificationCode != code) {
-      return res.status(400).json({ error: "Invalid User!" });
+      return res.status(400).json({ code: 400, error: "Invalid User!" });
     }
+
     user.emailVerify = true;
     user.password = password;
     await user.save();
 
     return res
       .status(200)
-      .json({ message: "Password createded successfully!" });
+      .json({ code: 200, message: "Password createded successfully!" });
   } catch (error) {
     console.error("Error during verification process:", error);
     return res
       .status(500)
-      .json({ error: "An internal server error occurred." });
+      .json({ code: 500, error: "An internal server error occurred." });
   }
 };
 
@@ -93,24 +95,25 @@ const forgotPasswordUser = async (req, res) => {
   const { email } = req.body;
 
   if (!email) {
-    return res.status(400).json({ error: "Email is required." });
+    return res.status(400).json({ code: 400, error: "Email is required." });
   }
 
   const existUser = await User.findOne({ email: email });
 
-  if (!existUser) return res.status(403).json({ message: "User not exist!" });
+  if (!existUser)
+    return res.status(403).json({ code: 403, message: "User not exist!" });
 
   const code = generateVerificationCode();
   const emailSend = await sendVarificationCodeOnMail({ code, email });
   if (!emailSend)
     return res
       .status(500)
-      .json({ message: "Server error while sending email!" });
+      .json({ code: 500, message: "Server error while sending email!" });
 
   existUser.verificationCode = code;
   await existUser.save();
 
-  return res.status(200).json({ message: "Cheak your mail box!" });
+  return res.status(200).json({ code: 200, message: "Cheak your mail box!" });
 };
 
 const loginUser = async (req, res) => {
@@ -120,17 +123,20 @@ const loginUser = async (req, res) => {
   if ((!email || !name) && !password)
     return res
       .status(400)
-      .json({ error: "Email or Name and password are required." });
+      .json({ code: 400, error: "Email or Name and password are required." });
 
   try {
     const user = await User.findOne({ $or: [{ email }, { name }] });
 
-    if (!user) return res.status(403).json({ message: "User not exist!" });
+    if (!user)
+      return res.status(403).json({ code: 403, message: "User not exist!" });
 
     const isPasswordVaild = await user.isPasswordCorrect(password);
 
     if (!isPasswordVaild)
-      return res.status(403).json({ message: "Password is incorrect!" });
+      return res
+        .status(403)
+        .json({ code: 403, message: "Password is incorrect!" });
 
     const accessToken = await user.generateAccessToken();
     const refreshToken = await user.generateRefreshToken();
@@ -151,6 +157,7 @@ const loginUser = async (req, res) => {
       .cookie("refreshToken", refreshToken, cookieOptions)
       .cookie("accessToken", accessToken, cookieOptions)
       .json({
+        code: 200,
         user: logInUser,
         accessToken,
         refreshToken,
@@ -158,15 +165,18 @@ const loginUser = async (req, res) => {
       });
   } catch (error) {
     console.log("Error in login", error);
-    return res.status(500).json({ message: "Server error while login!" });
+    return res
+      .status(500)
+      .json({ code: 500, message: "Server error while login!" });
   }
 };
 
 const logOutUser = async (req, res) => {
+  console.log(req.user._id);
   try {
-    await User.findByIdAndUpdate(req.user._id, {
-      $set: { refreshToken: undefined },
-    });
+    const user = await User.findById(req.user._id);
+    user.refreshToken = undefined;
+    await user.save();
 
     const options = {
       httpOnly: true,
@@ -177,7 +187,7 @@ const logOutUser = async (req, res) => {
       .status(200)
       .clearCookie("accessToken", options)
       .clearCookie("refreshToken", options)
-      .json({ message: "User logged Out successfully!" });
+      .json({ code: 200, message: "User logged Out successfully!" });
   } catch (error) {}
 };
 
