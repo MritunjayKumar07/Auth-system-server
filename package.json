@@ -1,7 +1,7 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Deply on Render:- https://auth-system-server.onrender.com",
   "main": "index.js",
   "type": "module",
   "scripts": {
@@ -22,5 +22,6 @@
     "mongoose": "^8.4.0",
     "nodemailer": "^6.9.13",
     "nodemon": "^3.1.0"
-  }
+  },
+  "devDependencies": {}
 }
